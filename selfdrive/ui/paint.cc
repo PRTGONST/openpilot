@@ -453,6 +453,7 @@ static void ui_draw_background(UIState *s) {
 
 void ui_draw(UIState *s, int w, int h) {
   s->viz_rect = Rect{bdr_s, bdr_s, w - 2 * bdr_s, h - 2 * bdr_s};
+  s->debug_tap_rect = Rect{s->viz_rect.centerX() - 200, s->viz_rect.centerY() - 200, 400, 400}; 
 
   const bool draw_vision = s->scene.started && s->vipc_client->connected;
 

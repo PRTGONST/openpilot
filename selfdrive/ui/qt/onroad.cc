@@ -82,7 +82,10 @@ void OnroadAlerts::updateState(const UIState &s) {
                            Hardware::MIN_VOLUME, Hardware::MAX_VOLUME);
   }
   if (sm["deviceState"].getDeviceState().getStarted()) {
-    if (sm.updated("controlsState")) {
+    if ((sm.frame - s.scene.display_debug_alert_frame) <= 1 * UI_FREQ) {
+      updateAlert("Debug snapshot collected", "", 0, "debugTapDetected",
+                  cereal::ControlsState::AlertSize::SMALL, AudibleAlert::CHIME_WARNING2);
+    } else if (sm.updated("controlsState")) {
       const cereal::ControlsState::Reader &cs = sm["controlsState"].getControlsState();
       updateAlert(QString::fromStdString(cs.getAlertText1()), QString::fromStdString(cs.getAlertText2()),
                   cs.getAlertBlinkingRate(), cs.getAlertType(), cs.getAlertSize(), cs.getAlertSound());
