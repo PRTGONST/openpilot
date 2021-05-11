@@ -108,6 +108,8 @@ typedef struct UIScene {
   cereal::DriverState::Reader driver_state;
   cereal::DriverMonitoringState::Reader dmonitoring_state;
 
+  cereal::LiveMapData::Reader live_map_data;
+
   // gps
   int satelliteCount;
   bool gpsOK;
@@ -157,6 +159,7 @@ typedef struct UIState {
   bool awake;
 
   Rect video_rect, viz_rect;
+  Rect debug_tap_rect;
   float car_space_transform[6];
   bool wide_camera;
   float zoom;

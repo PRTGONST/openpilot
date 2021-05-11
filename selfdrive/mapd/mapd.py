@@ -177,7 +177,12 @@ class MapD():
     map_data_msg = messaging.new_message('liveMapData')
     map_data_msg.valid = sm.all_alive_and_valid(service_list=['gpsLocationExternal'])
 
-    map_data_msg.liveMapData.lastGpsTimestamp = self.last_gps.timestamp
+    map_data_msg.liveMapData.lastGpsTimestamp = self.last_gps_fix_timestamp
+    map_data_msg.liveMapData.lastGpsLatitude = float(self.location_deg[0])
+    map_data_msg.liveMapData.lastGpsLongitude = float(self.location_deg[1])
+    map_data_msg.liveMapData.lastGpsSpeed = float(self.gps_speed)
+    map_data_msg.liveMapData.lastGpsLBearingDeg = float(np.radians(self.bearing_rad, dtype=float))
+
     map_data_msg.liveMapData.speedLimitValid = bool(speed_limit is not None)
     map_data_msg.liveMapData.speedLimit = float(speed_limit if speed_limit is not None else 0.0)
     map_data_msg.liveMapData.speedLimitAheadValid = bool(next_speed_limit_section is not None)

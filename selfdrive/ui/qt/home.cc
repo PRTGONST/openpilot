@@ -69,6 +69,38 @@ void HomeWindow::mousePressEvent(QMouseEvent* e) {
     Params().putBool("SpeedLimitControl", QUIState::ui_state.scene.speed_limit_control_enabled);
   }
 
+  // Issue a debug print.
+  else if (QUIState::ui_state.debug_tap_rect.ptInRect(e->x(), e->y())) {
+    char param_name[64] = {'\0'};
+    time_t rawtime = time(NULL);
+    struct tm timeinfo;
+    localtime_r(&rawtime, &timeinfo);
+    strftime(param_name, sizeof(param_name), "%Y-%m-%d--%H-%M-%S", &timeinfo);
+
+    auto live_map_data = QUIState::ui_state.scene.live_map_data;
+    char s[512];
+    int size = snprintf(s, sizeof(s), "Datetime: %s\nPos, Bearing: (%.6f, %.6f), %.2f; Speed: %.1f\n"
+      "sl: %.1f, valid: %d\nsl_ahead: %.1f, valid: %d, dist: %.1f\ntsl: %.1f, valid: %d, end dist: %.1f\n"
+      "tsl_ahead: %.1f, valid: %d, dist: %.1f\n\nSPEED LIMIT CONTROLLER:\nsl: %.1f, state: %hu\n\n"
+      "TURN SPEED CONTROLLER:\nspeed: %.1f, state: %hu\n\nTURN CONTROLLER:\nacc: %.3f, state: %hu", 
+      param_name, live_map_data.getLastGpsLatitude(), live_map_data.getLastGpsLongitude(),
+      live_map_data.getLastGpsLBearingDeg(), live_map_data.getLastGpsSpeed(), live_map_data.getSpeedLimit() * 3.6, 
+      live_map_data.getSpeedLimitValid(), live_map_data.getSpeedLimitAhead() * 3.6,
+      live_map_data.getSpeedLimitAheadValid(), live_map_data.getSpeedLimitAheadDistance(),
+      live_map_data.getTurnSpeedLimit() * 3.6, live_map_data.getTurnSpeedLimitValid(),
+      live_map_data.getTurnSpeedLimitEndDistance(), live_map_data.getTurnSpeedLimitAhead() * 3.6, 
+      live_map_data.getTurnSpeedLimitAheadValid(), live_map_data.getTurnSpeedLimitAheadDistance(), 
+      QUIState::ui_state.scene.controls_state.getSpeedLimit(),
+      QUIState::ui_state.scene.controls_state.getSpeedLimitControlState(),
+      QUIState::ui_state.scene.controls_state.getTurnSpeed(),
+      QUIState::ui_state.scene.controls_state.getTurnSpeedControlState(), 
+      QUIState::ui_state.scene.controls_state.getTurnAcc(),
+      QUIState::ui_state.scene.controls_state.getTurnControllerState());
+
+    Params().put(param_name, s, size < sizeof(s) ? size : sizeof(s));
+    QUIState::ui_state.sound->play(AudibleAlert::CHIME_WARNING2);
+  }
+
   // Handle sidebar collapsing
   if (onroad->isVisible() && (!sidebar->isVisible() || e->x() > sidebar->width())) {
     sidebar->setVisible(!sidebar->isVisible());
