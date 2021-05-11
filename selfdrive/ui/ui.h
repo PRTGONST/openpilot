@@ -92,6 +92,7 @@ typedef struct UIScene {
 
   // Debug UI
   bool show_debug_ui;
+  uint64_t display_debug_alert_frame;
 
   // Speed limit control
   bool speed_limit_control_enabled;
@@ -105,6 +106,8 @@ typedef struct UIScene {
   cereal::ControlsState::Reader controls_state;
   cereal::DriverState::Reader driver_state;
   cereal::DriverMonitoringState::Reader dmonitoring_state;
+
+  cereal::LiveMapData::Reader live_map_data;
 
   // gps
   int satelliteCount;
@@ -157,6 +160,7 @@ typedef struct UIState {
   Rect video_rect, viz_rect;
   Rect speed_limit_sign_touch_rect;
   double last_speed_limit_sign_tap;
+  Rect debug_tap_rect;
   float car_space_transform[6];
   bool wide_camera;
   float zoom;

@@ -215,6 +215,9 @@ static void update_state(UIState *s) {
     float gain = camera_state.getGainFrac() * (camera_state.getGlobalGain() > 100 ? 2.5 : 1.0) / 10.0;
     scene.light_sensor = std::clamp<float>((1023.0 / 1757.0) * (1757.0 - camera_state.getIntegLines()) * (1.0 - gain), 0.0, 1023.0);
   }
+  if (sm.updated("liveMapData")) {
+    scene.live_map_data = sm["liveMapData"].getLiveMapData();
+  }
   scene.started = scene.deviceState.getStarted() || scene.driver_view;
 }
 
@@ -281,6 +284,7 @@ QUIState::QUIState(QObject *parent) : QObject(parent) {
   ui_state.sm = std::make_unique<SubMaster, const std::initializer_list<const char *>>({
     "modelV2", "controlsState", "liveCalibration", "radarState", "deviceState", "liveLocationKalman",
     "pandaState", "carParams", "driverState", "driverMonitoringState", "sensorEvents", "carState", "ubloxGnss",
+    "liveMapData",
 #ifdef QCOM2
     "roadCameraState",
 #endif
