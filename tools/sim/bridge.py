@@ -5,6 +5,7 @@ import carla # pylint: disable=import-error
 import math
 import numpy as np
 import time
+import os
 import threading
 from typing import Any
 
@@ -33,6 +34,10 @@ STEER_RATIO = 15.
 
 pm = messaging.PubMaster(['roadCameraState', 'sensorEvents', 'can', 'gpsLocationExternal'])
 sm = messaging.SubMaster(['carControl','controlsState'])
+
+
+_RECORD_GPS = "RECORD_GPS" in os.environ
+
 
 class VehicleState:
   def __init__(self):
@@ -98,12 +103,14 @@ def panda_state_function():
 last_position = np.radians([0., 0.])
 last_fix_ts = time.time()
 gnss_fix_ref = 0
+speed_limit = 0.
 
 
 def gnss_callback(gnss):
   global last_position
   global last_fix_ts
   global gnss_fix_ref
+  global speed_limit
 
   new_fix_ts = time.time()
   ref = int(new_fix_ts * 3)
@@ -122,7 +129,7 @@ def gnss_callback(gnss):
   dat.gpsLocationExternal.accuracy = float(0.)
   dat.gpsLocationExternal.source = log.GpsLocationData.SensorSource.ublox
   dat.gpsLocationExternal.vNED = [float(15) for i in range(3)]
-  dat.gpsLocationExternal.verticalAccuracy = float(0.)
+  dat.gpsLocationExternal.verticalAccuracy = float(speed_limit / 10.) if _RECORD_GPS else float(0.)
   dat.gpsLocationExternal.bearingAccuracyDeg = float(0.)
 
   new_position = np.radians([gnss.latitude, gnss.longitude])
@@ -261,7 +268,7 @@ def bridge(q):
   brake_manual_multiplier = 0.7 #keyboard signal is always 1
   steer_manual_multiplier = 45 * STEER_RATIO  #keyboard signal is always 1
 
-
+  global speed_limit
   while 1:
     # 1. Read the throttle, steer and brake from op or manual controls
     # 2. Set instructions in Carla
@@ -285,6 +292,8 @@ def bridge(q):
       if m[0] == "brake":
         brake_manual = float(m[1])
         is_openpilot_engaged = False
+      if m[0] == "speedlimit":
+        speed_limit = float(m[1])
       if m[0] == "reverse":
         #in_reverse = not in_reverse
         cruise_button = CruiseButtons.CANCEL
