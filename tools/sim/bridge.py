@@ -9,11 +9,13 @@ import threading
 from typing import Any
 
 import cereal.messaging as messaging
+from cereal import log
 from common.params import Params
 from common.realtime import Ratekeeper, DT_DMON
 from lib.can import can_function
 from selfdrive.car.honda.values import CruiseButtons
 from selfdrive.test.helpers import set_params_enabled
+from selfdrive.mapd.lib.geo import bearing_to_points, distance_to_points
 
 parser = argparse.ArgumentParser(description='Bridge between CARLA and openpilot.')
 parser.add_argument('--joystick', action='store_true')
@@ -29,7 +31,7 @@ REPEAT_COUNTER = 5
 PRINT_DECIMATION = 100
 STEER_RATIO = 15.
 
-pm = messaging.PubMaster(['roadCameraState', 'sensorEvents', 'can'])
+pm = messaging.PubMaster(['roadCameraState', 'sensorEvents', 'can', 'gpsLocationExternal'])
 sm = messaging.SubMaster(['carControl','controlsState'])
 
 class VehicleState:
@@ -92,13 +94,50 @@ def panda_state_function():
     pm.send('pandaState', dat)
     time.sleep(0.5)
 
-def fake_gps():
-  # TODO: read GPS from CARLA
-  pm = messaging.PubMaster(['gpsLocationExternal'])
-  while 1:
-    dat = messaging.new_message('gpsLocationExternal')
-    pm.send('gpsLocationExternal', dat)
-    time.sleep(0.01)
+
+last_position = np.radians([0., 0.])
+last_fix_ts = time.time()
+gnss_fix_ref = 0
+
+
+def gnss_callback(gnss):
+  global last_position
+  global last_fix_ts
+  global gnss_fix_ref
+
+  new_fix_ts = time.time()
+  ref = int(new_fix_ts * 3)
+  if ref <= gnss_fix_ref:
+    return
+
+  gnss_fix_ref = ref
+
+  dat = messaging.new_message('gpsLocationExternal')
+  dat.gpsLocationExternal.flags = int(1)
+  dat.gpsLocationExternal.timestamp = int(new_fix_ts * 1000)
+  dat.gpsLocationExternal.latitude = float(gnss.latitude)
+  dat.gpsLocationExternal.longitude = float(gnss.longitude)
+  dat.gpsLocationExternal.altitude = float(gnss.altitude)
+
+  dat.gpsLocationExternal.accuracy = float(0.)
+  dat.gpsLocationExternal.source = log.GpsLocationData.SensorSource.ublox
+  dat.gpsLocationExternal.vNED = [float(15) for i in range(3)]
+  dat.gpsLocationExternal.verticalAccuracy = float(0.)
+  dat.gpsLocationExternal.bearingAccuracyDeg = float(0.)
+
+  new_position = np.radians([gnss.latitude, gnss.longitude])
+  bearing = bearing_to_points(last_position, np.array([new_position]))[0]
+  dat.gpsLocationExternal.bearingDeg = float(np.degrees(bearing))
+
+  distance = distance_to_points(last_position, np.array([new_position]))[0]
+  dat.gpsLocationExternal.speed = float(distance / (new_fix_ts - last_fix_ts))
+  dat.gpsLocationExternal.speedAccuracy = float(0.)
+
+  last_position = new_position
+  last_fix_ts = new_fix_ts
+
+  pm.send('gpsLocationExternal', dat)
+
 
 def fake_driver_monitoring():
   pm = messaging.PubMaster(['driverState','driverMonitoringState'])
@@ -180,6 +219,11 @@ def bridge(q):
   imu = world.spawn_actor(imu_bp, transform, attach_to=vehicle)
   imu.listen(imu_callback)
 
+  # gps
+  gnss_bp = blueprint_library.find('sensor.other.gnss')
+  gnss = world.spawn_actor(gnss_bp, transform, attach_to=vehicle)
+  gnss.listen(gnss_callback)
+
   def destroy():
     print("clean exit")
     imu.destroy()
@@ -194,7 +238,6 @@ def bridge(q):
   # launch fake car threads
   threading.Thread(target=panda_state_function).start()
   threading.Thread(target=fake_driver_monitoring).start()
-  threading.Thread(target=fake_gps).start()
   threading.Thread(target=can_function_runner, args=(vehicle_state,)).start()
 
   # can loop
