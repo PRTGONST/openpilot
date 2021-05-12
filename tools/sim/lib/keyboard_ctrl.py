@@ -40,20 +40,36 @@ def keyboard_poll_thread(q: 'Queue[str]') -> NoReturn:
     c = getch()
     # print("got %s" % c)
     if c == '1':
-      q.put("cruise_up")
-    elif c == '2':
-      q.put("cruise_down")
-    elif c == '3':
-      q.put("cruise_cancel")
-    elif c == 'w':
-      q.put("throttle_%f" % 1.0)
-    elif c == 'a':
-      q.put("steer_%f" % 0.15)
-    elif c == 's':
-      q.put("brake_%f" % 1.0)
-    elif c == 'd':
-      q.put("steer_%f" % -0.15)
-    elif c == 'q':
+      q.put(str("cruise_up"))
+    if c == '2':
+      q.put(str("cruise_down"))
+    if c == '3':
+      q.put(str("cruise_cancel"))
+    if c == 't':
+      q.put(str("speedlimit_30"))
+    if c == '4':
+      q.put(str("speedlimit_40"))
+    if c == '5':
+      q.put(str("speedlimit_50"))
+    if c == '6':
+      q.put(str("speedlimit_60"))
+    if c == '7':
+      q.put(str("speedlimit_70"))
+    if c == '8':
+      q.put(str("speedlimit_80"))
+    if c == '9':
+      q.put(str("speedlimit_90"))
+    if c == '0':
+      q.put(str("speedlimit_0"))
+    if c == 'w':
+      q.put(str("throttle_%f" % 1.0))
+    if c == 'a':
+      q.put(str("steer_%f" % 0.15))
+    if c == 's':
+      q.put(str("brake_%f" % 1.0))
+    if c == 'd':
+      q.put(str("steer_%f" % -0.15))
+    if c == 'q':
       exit(0)
 
 def test(q: 'Queue[str]') -> NoReturn:
