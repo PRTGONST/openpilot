@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <iomanip>
 
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
@@ -211,7 +212,23 @@ static void ui_draw_vision_speed(UIState *s) {
 }
 
 static void ui_draw_vision_event(UIState *s) {
-  if (s->scene.engageable) {
+  auto controls_state = (*s->sm)["controlsState"].getControlsState();
+  auto turnControllerState = controls_state.getTurnControllerState();
+  if (turnControllerState > cereal::ControlsState::TurnControllerState::DISABLED && s->scene.engageable) {
+    // draw a rectangle with colors indicating the state with the value of the acceleration inside.
+    const int size = 184;
+    const Rect rect = {s->viz_rect.right() - size - bdr_s, int(s->viz_rect.y + (bdr_s * 1.5)), size, size};
+    ui_fill_rect(s->vg, rect, COLOR_BLACK_ALPHA(100), 30.);
+    ui_draw_rect(s->vg, rect, tcs_colors[turnControllerState], 10, 20.);
+    const float turnAcc = controls_state.getTurnAcc();
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(2) << turnAcc;
+    std::string acc_str = stream.str();
+
+    nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+    ui_draw_text(s, rect.centerX(), rect.centerY(), acc_str.c_str(), 48, COLOR_WHITE, "sans-bold");
+  } else if (s->scene.engageable) {
     // draw steering wheel
     const int radius = 96;
     const int center_x = s->viz_rect.right() - radius - bdr_s * 2;
