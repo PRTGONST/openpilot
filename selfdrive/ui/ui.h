@@ -92,6 +92,9 @@ typedef struct UIScene {
   mat3 view_from_calib;
   bool world_objects_visible;
 
+  // Debug UI
+  bool show_debug_ui;
+
   // Speed limit control
   bool speed_limit_control_enabled;
   bool speed_limit_perc_offset;

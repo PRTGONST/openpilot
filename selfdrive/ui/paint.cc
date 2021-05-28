@@ -329,7 +329,7 @@ static void ui_draw_vision_turnspeed(UIState *s) {
   auto controls_state = (*s->sm)["controlsState"].getControlsState();
   const float turnSpeed = controls_state.getTurnSpeed();
   const float vEgo = (*s->sm)["carState"].getCarState().getVEgo();
-  const bool show = turnSpeed > 0.0 && (turnSpeed < vEgo);
+  const bool show = turnSpeed > 0.0 && (turnSpeed < vEgo || s->scene.show_debug_ui);
 
   if (show) {
     const int viz_maxspeed_h = 202;
@@ -362,7 +362,8 @@ static void ui_draw_vision_speed(UIState *s) {
 static void ui_draw_vision_event(UIState *s) {
   auto controls_state = (*s->sm)["controlsState"].getControlsState();
   auto turnControllerState = controls_state.getTurnControllerState();
-  if (turnControllerState > cereal::ControlsState::TurnControllerState::DISABLED && s->scene.engageable) {
+  if (s->scene.show_debug_ui && turnControllerState > cereal::ControlsState::TurnControllerState::DISABLED &&
+      s->scene.engageable) {
     // draw a rectangle with colors indicating the state with the value of the acceleration inside.
     const int size = 184;
     const Rect rect = {s->viz_rect.right() - size - bdr_s, int(s->viz_rect.y + (bdr_s * 1.5)), size, size};

@@ -271,6 +271,7 @@ static void update_status(UIState *s) {
 
       s->scene.speed_limit_control_enabled = Params().getBool("SpeedLimitControl");
       s->scene.speed_limit_perc_offset = Params().getBool("SpeedLimitPercOffset");
+      s->scene.show_debug_ui = Params().getBool("ShowDebugUI");
     } else {
       s->vipc_client->connected = false;
     }
