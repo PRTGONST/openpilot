@@ -43,10 +43,10 @@ static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float spe
   ui_draw_circle(s, x, y, float(size), COLOR_RED_ALPHA(ring_alpha));
   ui_draw_circle(s, x, y, float(size) * 0.8, COLOR_WHITE_ALPHA(inner_alpha));
 
-  char speedlimit_str[16];
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-  snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
-  ui_draw_text(s, x, y + (bdr_s * 1.5), speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
+
+  const std::string speedlimit_str = std::to_string((int)std::nearbyint(speed));
+  ui_draw_text(s, x, y, speedlimit_str.c_str(), 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
   ui_draw_text(s, x, y + 55, subtext, subtext_size, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
@@ -231,7 +231,7 @@ static void ui_draw_vision_maxspeed(UIState *s) {
 static void ui_draw_vision_speedlimit(UIState *s) {
   auto controls_state = (*s->sm)["controlsState"].getControlsState();
   const float speedLimit = controls_state.getSpeedLimit();
-  const float speedLimitOffset = speedLimit * s->scene.speed_limit_perc_offset / 100.0;
+  const float speedLimitOffset = controls_state.getSpeedLimitOffset();
 
   if (speedLimit > 0.0 && s->scene.engageable) {
     const int viz_maxspeed_w = 184;
@@ -239,7 +239,7 @@ static void ui_draw_vision_speedlimit(UIState *s) {
     const int sign_center_x = s->viz_rect.x + bdr_s * 3 + viz_maxspeed_w + speed_sgn_r;
     const int sign_center_y = s->viz_rect.y + int(bdr_s * 1.5) + viz_maxspeed_h / 2;
     const float speed = (s->scene.is_metric ? speedLimit * 3.6 : speedLimit * 2.2369363) + 0.5;
-    const float speed_offset = (s->scene.is_metric ? speedLimitOffset * 3.6 : speedLimitOffset * 2.2369363) + 0.5;
+    const int speed_offset = int(speedLimitOffset * (s->scene.is_metric ? 3.6 : 2.2369363) + 0.5);
 
     auto speedLimitControlState = controls_state.getSpeedLimitControlState();
     const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->last_speed_limit_sign_tap + 2.0;
