@@ -55,7 +55,7 @@ static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float spe
 
   ui_draw_text(s, x, y + 55, subtext, subtext_size, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
-  if (is_map_sourced) {
+  if (is_map_sourced && s->scene.show_debug_ui) {
     const int img_size = 35;
     const int img_y = int(y - 55);
     ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "map_source_icon", inner_alpha);
@@ -313,7 +313,7 @@ static void ui_draw_vision_turnspeed(UIState *s) {
   const float turnSpeed = s->scene.controls_state.getTurnSpeed();
   const float vEgo = s->scene.car_state.getVEgo();
   const bool show = s->scene.controls_state.getEnabled() && turnSpeed > 0.0 &&
-                    (turnSpeed < vEgo);
+                    (turnSpeed < vEgo || s->scene.show_debug_ui);
 
   if (show) {
     const int viz_maxspeed_h = 202;
@@ -346,7 +346,8 @@ static void ui_draw_vision_speed(UIState *s) {
 
 static void ui_draw_vision_event(UIState *s) {
   auto turnControllerState = s->scene.controls_state.getTurnControllerState();
-  if (turnControllerState > cereal::ControlsState::TurnControllerState::DISABLED && s->scene.controls_state.getEnabled()) {
+  if (s->scene.show_debug_ui && turnControllerState > cereal::ControlsState::TurnControllerState::DISABLED && 
+      s->scene.controls_state.getEnabled()) {
     // draw a rectangle with colors indicating the state with the value of the acceleration inside.
     const int size = 184;
     const Rect rect = {s->viz_rect.right() - size - bdr_s, int(s->viz_rect.y + (bdr_s * 1.5)), size, size};

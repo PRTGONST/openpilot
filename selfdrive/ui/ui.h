@@ -90,6 +90,9 @@ typedef struct UIScene {
   bool is_rhd;
   bool driver_view;
 
+  // Debug UI
+  bool show_debug_ui;
+
   // Speed limit control
   bool speed_limit_control_enabled;
   bool speed_limit_perc_offset;
