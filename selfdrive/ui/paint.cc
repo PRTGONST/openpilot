@@ -39,21 +39,26 @@ static void ui_draw_circle(UIState *s, float x, float y, float size, NVGcolor co
   nvgFill(s->vg);
 }
 
-static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float speed, const char *subtext, float subtext_size, bool is_map_sourced, const char *font_name, int ring_alpha, int inner_alpha) {
-  ui_draw_circle(s, x, y, float(size), COLOR_RED_ALPHA(ring_alpha));
-  ui_draw_circle(s, x, y, float(size) * 0.8, COLOR_WHITE_ALPHA(inner_alpha));
+static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float speed, const char *subtext, 
+                               float subtext_size, const char *font_name, bool is_map_sourced, bool is_active) {
+  NVGcolor ring_color = is_active ? COLOR_RED : COLOR_BLACK_ALPHA(.2f * 255);
+  NVGcolor inner_color = is_active ? COLOR_WHITE : COLOR_WHITE_ALPHA(.35f * 255);
+  NVGcolor text_color = is_active ? COLOR_BLACK : COLOR_BLACK_ALPHA(.3f * 255);
 
-  char speedlimit_str[16];
+  ui_draw_circle(s, x, y, float(size), ring_color);
+  ui_draw_circle(s, x, y, float(size) * 0.8, inner_color);
+
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-  snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
-  ui_draw_text(s, x, y + (bdr_s * 1.5), speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
-  ui_draw_text(s, x, y + 55, subtext, subtext_size, COLOR_BLACK_ALPHA(inner_alpha), font_name);
+  const std::string speedlimit_str = std::to_string((int)std::nearbyint(speed));
+  ui_draw_text(s, x, y, speedlimit_str.c_str(), 120, text_color, font_name);
+  ui_draw_text(s, x, y + 55, subtext, subtext_size, text_color, font_name);
 
   if (is_map_sourced) {
     const int img_size = 35;
     const int img_y = int(y - 55);
-    ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "map_source_icon", inner_alpha);
+    ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "map_source_icon", 
+                  is_active ? 1. : .3);
   }
 }
 
@@ -231,7 +236,7 @@ static void ui_draw_vision_maxspeed(UIState *s) {
 static void ui_draw_vision_speedlimit(UIState *s) {
   auto controls_state = (*s->sm)["controlsState"].getControlsState();
   const float speedLimit = controls_state.getSpeedLimit();
-  const float speedLimitOffset = speedLimit * s->scene.speed_limit_perc_offset / 100.0;
+  const float speedLimitOffset = controls_state.getSpeedLimitOffset();
 
   if (speedLimit > 0.0 && s->scene.engageable) {
     const int viz_maxspeed_w = 184;
@@ -242,21 +247,25 @@ static void ui_draw_vision_speedlimit(UIState *s) {
     const float speed_offset = speedLimitOffset * (s->scene.is_metric ? 3.6 : 2.2369362921);
 
     auto speedLimitControlState = controls_state.getSpeedLimitControlState();
-    const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->last_speed_limit_sign_tap + 2.0;
-    const bool inactive = !force_active && (!s->scene.speed_limit_control_enabled || speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::INACTIVE);
-    const bool temp_inactive = !force_active && (s->scene.speed_limit_control_enabled && speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::TEMP_INACTIVE);
-    const int ring_alpha = inactive ? 100 : 255;
-    const int inner_alpha = inactive || temp_inactive ? 100 : 255;
+    const bool force_active = s->scene.speed_limit_control_enabled && 
+                              seconds_since_boot() < s->last_speed_limit_sign_tap + 2.0;
+    const bool inactive = !force_active && (!s->scene.speed_limit_control_enabled || 
+                          speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::INACTIVE);
+    const bool temp_inactive = !force_active && (s->scene.speed_limit_control_enabled && 
+                               speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::TEMP_INACTIVE);
 
     const int distToSpeedLimit = int(controls_state.getDistToSpeedLimit() * 
                                      (s->scene.is_metric ? 1.0 : 3.28084) / 10.0) * 10;
     const bool is_map_sourced = controls_state.getIsMapSpeedLimit();
     const std::string distance_str = std::to_string(distToSpeedLimit) + (s->scene.is_metric ? "m" : "f");
     const std::string offset_str = speed_offset > 0.0 ? "+" + std::to_string((int)std::nearbyint(speed_offset)) : "";
+    const std::string inactive_str = temp_inactive ? "TEMP" : "";
+    const std::string substring = inactive || temp_inactive ? inactive_str : 
+                                                              distToSpeedLimit > 0 ? distance_str : offset_str;
+    const float substring_size = inactive || temp_inactive || distToSpeedLimit > 0 ? 30.0 : 50.0;
 
-    ui_draw_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, 
-                       distToSpeedLimit > 0 ? distance_str.c_str() : offset_str.c_str(), 
-                       distToSpeedLimit > 0 ? 30.0 : 50.0, is_map_sourced, "sans-bold", ring_alpha, inner_alpha);
+    ui_draw_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, substring.c_str(), substring_size, 
+                       "sans-bold", is_map_sourced, !inactive && !temp_inactive);
 
     s->speed_limit_sign_touch_rect = Rect{sign_center_x - speed_sgn_r - 50, sign_center_y - speed_sgn_r - 50,
                                           speed_sgn_r + 100, speed_sgn_r + 100};
