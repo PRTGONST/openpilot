@@ -57,6 +57,18 @@ void HomeWindow::mousePressEvent(QMouseEvent* e) {
     return;
   }
 
+  // Toggle speed limit control enabled
+  else if (QUIState::ui_state.scene.controls_state.getSpeedLimit() > 0.0 
+      && e->x() >= QUIState::ui_state.scene.ui_speed_sgn_x - speed_sgn_touch_pad
+      && e->x() < QUIState::ui_state.scene.ui_speed_sgn_x + 2 * speed_sgn_r + speed_sgn_touch_pad
+      && e->y() >= QUIState::ui_state.scene.ui_speed_sgn_y - speed_sgn_touch_pad
+      && e->y() < QUIState::ui_state.scene.ui_speed_sgn_y + 2 * speed_sgn_r + speed_sgn_touch_pad) {
+    // If touching the speed limit sign area when visible
+    QUIState::ui_state.scene.last_speed_limit_sign_tap = seconds_since_boot();
+    QUIState::ui_state.scene.speed_limit_control_enabled = !QUIState::ui_state.scene.speed_limit_control_enabled;
+    Params().putBool("SpeedLimitControl", QUIState::ui_state.scene.speed_limit_control_enabled);
+  }
+
   // Handle sidebar collapsing
   if (onroad->isVisible() && (!sidebar->isVisible() || e->x() > sidebar->width())) {
     sidebar->setVisible(!sidebar->isVisible());
