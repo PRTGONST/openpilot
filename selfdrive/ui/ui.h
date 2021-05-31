@@ -30,6 +30,7 @@
 #define COLOR_RED_ALPHA(x) nvgRGBA(201, 34, 49, x)
 #define COLOR_YELLOW nvgRGBA(218, 202, 37, 255)
 #define COLOR_RED nvgRGBA(201, 34, 49, 255)
+#define COLOR_RED_ALPHA(x) nvgRGBA(201, 34, 49, x)
 
 typedef struct Rect {
   int x, y, w, h;
@@ -45,6 +46,9 @@ typedef struct Rect {
 const int bdr_s = 30;
 const int header_h = 420;
 const int footer_h = 280;
+
+const int speed_sgn_r = 96;
+const int speed_sgn_touch_pad = 50;
 
 const int UI_FREQ = 20;   // Hz
 
@@ -85,6 +89,10 @@ typedef struct UIScene {
 
   bool is_rhd;
   bool driver_view;
+
+  // Speed limit control
+  bool speed_limit_control_enabled;
+  bool speed_limit_perc_offset;
 
   cereal::PandaState::PandaType pandaType;
 
@@ -144,6 +152,8 @@ typedef struct UIState {
   bool awake;
 
   Rect video_rect, viz_rect;
+  Rect speed_limit_sign_touch_rect;
+  double last_speed_limit_sign_tap;
   float car_space_transform[6];
   bool wide_camera;
   float zoom;
