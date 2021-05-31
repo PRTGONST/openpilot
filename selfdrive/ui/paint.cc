@@ -32,6 +32,31 @@ static void ui_draw_text(const UIState *s, float x, float y, const char *string,
   nvgText(s->vg, x, y, string, NULL);
 }
 
+static void ui_draw_circle(UIState *s, float x, float y, float size, NVGcolor color) {
+  nvgBeginPath(s->vg);
+  nvgCircle(s->vg, x, y, size);
+  nvgFillColor(s->vg, color);
+  nvgFill(s->vg);
+}
+
+static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float speed, const char *subtext, float subtext_size, bool is_map_sourced, const char *font_name, int ring_alpha, int inner_alpha) {
+  ui_draw_circle(s, x, y, float(size), COLOR_RED_ALPHA(ring_alpha));
+  ui_draw_circle(s, x, y, float(size) * 0.8, COLOR_WHITE_ALPHA(inner_alpha));
+
+  char speedlimit_str[16];
+  nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+  snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
+  ui_draw_text(s, x, y + (bdr_s * 1.5), speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
+
+  ui_draw_text(s, x, y + 55, subtext, subtext_size, COLOR_BLACK_ALPHA(inner_alpha), font_name);
+
+  if (is_map_sourced) {
+    const int img_size = 35;
+    const int img_y = int(y - 55);
+    ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "map_source_icon", inner_alpha);
+  }
+}
+
 static void draw_chevron(UIState *s, float x, float y, float sz, NVGcolor fillColor, NVGcolor glowColor) {
   // glow
   float g_xo = sz/5;
@@ -203,6 +228,41 @@ static void ui_draw_vision_maxspeed(UIState *s) {
   }
 }
 
+static void ui_draw_vision_speedlimit(UIState *s) {
+  auto controls_state = (*s->sm)["controlsState"].getControlsState();
+  const float speedLimit = controls_state.getSpeedLimit();
+  const float speedLimitOffset = speedLimit * s->scene.speed_limit_perc_offset / 100.0;
+
+  if (speedLimit > 0.0 && s->scene.engageable) {
+    const int viz_maxspeed_w = 184;
+    const int viz_maxspeed_h = 202;
+    const int sign_center_x = s->viz_rect.x + bdr_s * 3 + viz_maxspeed_w + speed_sgn_r;
+    const int sign_center_y = s->viz_rect.y + int(bdr_s * 1.5) + viz_maxspeed_h / 2;
+    const float speed = speedLimit * (s->scene.is_metric ? 3.6 : 2.2369362921);
+    const float speed_offset = speedLimitOffset * (s->scene.is_metric ? 3.6 : 2.2369362921);
+
+    auto speedLimitControlState = controls_state.getSpeedLimitControlState();
+    const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->last_speed_limit_sign_tap + 2.0;
+    const bool inactive = !force_active && (!s->scene.speed_limit_control_enabled || speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::INACTIVE);
+    const bool temp_inactive = !force_active && (s->scene.speed_limit_control_enabled && speedLimitControlState == cereal::ControlsState::SpeedLimitControlState::TEMP_INACTIVE);
+    const int ring_alpha = inactive ? 100 : 255;
+    const int inner_alpha = inactive || temp_inactive ? 100 : 255;
+
+    const int distToSpeedLimit = int(controls_state.getDistToSpeedLimit() * 
+                                     (s->scene.is_metric ? 1.0 : 3.28084) / 10.0) * 10;
+    const bool is_map_sourced = controls_state.getIsMapSpeedLimit();
+    const std::string distance_str = std::to_string(distToSpeedLimit) + (s->scene.is_metric ? "m" : "f");
+    const std::string offset_str = speed_offset > 0.0 ? "+" + std::to_string((int)std::nearbyint(speed_offset)) : "";
+
+    ui_draw_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, 
+                       distToSpeedLimit > 0 ? distance_str.c_str() : offset_str.c_str(), 
+                       distToSpeedLimit > 0 ? 30.0 : 50.0, is_map_sourced, "sans-bold", ring_alpha, inner_alpha);
+
+    s->speed_limit_sign_touch_rect = Rect{sign_center_x - speed_sgn_r - 50, sign_center_y - speed_sgn_r - 50,
+                                          speed_sgn_r + 100, speed_sgn_r + 100};
+  }
+}
+
 static void ui_draw_vision_speed(UIState *s) {
   const float speed = std::max(0.0, (*s->sm)["carState"].getCarState().getVEgo() * (s->scene.is_metric ? 3.6 : 2.2369363));
   const std::string speed_str = std::to_string((int)std::nearbyint(speed));
@@ -266,6 +326,7 @@ static void ui_draw_vision_header(UIState *s) {
   ui_fill_rect(s->vg, {s->viz_rect.x, s->viz_rect.y, s->viz_rect.w, header_h}, gradient);
 
   ui_draw_vision_maxspeed(s);
+  ui_draw_vision_speedlimit(s);
   ui_draw_vision_speed(s);
   ui_draw_vision_event(s);
 }
