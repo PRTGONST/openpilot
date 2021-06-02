@@ -65,9 +65,9 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   
 
   nvgBeginPath(s->vg);
-  nvgMoveTo(s->vg, x, y - h1);
-  nvgLineTo(s->vg, x - size, y + h2);
-  nvgLineTo(s->vg, x + size, y + h2);
+  nvgMoveTo(s->vg, x, y - size);
+  nvgLineTo(s->vg, x - size, y + h1 + h2 - size);
+  nvgLineTo(s->vg, x + size, y + h1 + h2 - size);
   nvgClosePath(s->vg);
 
   nvgFillColor(s->vg, COLOR_WHITE_ALPHA(alpha));
