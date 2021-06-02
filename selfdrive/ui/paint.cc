@@ -61,13 +61,12 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   nvgStrokeWidth(s->vg, stroke_w);
   nvgStrokeColor(s->vg, COLOR_RED_ALPHA(alpha));
 
-  const float R = size - stroke_w;
+  const float R = size - stroke_w / 2.0;
   const float A = 0.73205;
   const float h2 = 2.0 * R / (1.0 + A);
   const float h1 = A * h2;
   const float L = 4.0 * R / sqrt(3.0);
   
-
   nvgBeginPath(s->vg);
   nvgMoveTo(s->vg, x, y - R);
   nvgLineTo(s->vg, x - L / 2.0, y + h1 + h2 - R);
@@ -79,15 +78,15 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   nvgStroke(s->vg);
 
   const int img_size = 30;
-  const int img_y = int(y - 0.35 * R + 16);
-  ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "turn_icon", 1.0);
+  const int img_y = int(y - R + stroke_w + 10);
+  ui_draw_image(s, {int(x - (img_size / 2)), img_y, img_size, img_size}, "turn_icon", alpha);
 
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
 
   const std::string speedlimit_str = std::to_string((int)std::nearbyint(speed));
-  ui_draw_text(s, x, y + bdr_s + 5, speedlimit_str.c_str(), 100., COLOR_BLACK_ALPHA(alpha), font_name);
+  ui_draw_text(s, x, y + 30, speedlimit_str.c_str(), 90., COLOR_BLACK_ALPHA(alpha), font_name);
 
-  ui_draw_text(s, x, y + bdr_s + 45, subtext, 30., COLOR_BLACK_ALPHA(alpha), font_name);
+  ui_draw_text(s, x, y + 65, subtext, 30., COLOR_BLACK_ALPHA(alpha), font_name);
 }
 
 static void draw_chevron(UIState *s, float x, float y, float sz, NVGcolor fillColor, NVGcolor glowColor) {
