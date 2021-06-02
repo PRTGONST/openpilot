@@ -77,8 +77,8 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   nvgFill(s->vg);
   nvgStroke(s->vg);
 
-  const int img_size = 35;
-  const int img_y = int(y - R + stroke_w + 20);
+  const int img_size = 40;
+  const int img_y = int(y - R + stroke_w + 25);
   ui_draw_image(s, {int(x - (img_size / 2)), img_y, img_size, img_size}, "turn_icon", alpha);
 
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
