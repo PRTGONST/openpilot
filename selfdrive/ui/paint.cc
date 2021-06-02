@@ -39,10 +39,10 @@ static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float spe
   ui_draw_circle(s, x, y, float(size), COLOR_RED_ALPHA(ring_alpha));
   ui_draw_circle(s, x, y, float(size) * 0.8, COLOR_WHITE_ALPHA(inner_alpha));
 
-  char speedlimit_str[16];
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-  snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
-  ui_draw_text(s, x, y, speedlimit_str, 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
+
+  const std::string speedlimit_str = std::to_string((int)std::nearbyint(speed));
+  ui_draw_text(s, x, y, speedlimit_str.c_str(), 120, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
   ui_draw_text(s, x, y + 55, subtext, subtext_size, COLOR_BLACK_ALPHA(inner_alpha), font_name);
 
@@ -266,7 +266,7 @@ static void ui_draw_vision_speedlimit(UIState *s) {
     const float sign_center_x = s->viz_rect.x + bdr_s * 3 + viz_maxspeed_w + speed_sgn_r;
     const float sign_center_y = s->viz_rect.y + bdr_s * 1.5 + viz_maxspeed_h / 2;
     const float speed = (s->scene.is_metric ? speedLimit * 3.6 : speedLimit * 2.2369363) + 0.5;
-    const int speed_offset = int((s->scene.is_metric ? speedLimitOffset * 3.6 : speedLimitOffset * 2.2369363) + 0.5);
+    const int speed_offset = int(speedLimitOffset * (s->scene.is_metric ? 3.6 : 2.2369363) + 0.5);
 
     auto speedLimitControlState = s->scene.controls_state.getSpeedLimitControlState();
     const bool force_active = s->scene.speed_limit_control_enabled && seconds_since_boot() < s->scene.last_speed_limit_sign_tap + 2.0;
@@ -275,19 +275,16 @@ static void ui_draw_vision_speedlimit(UIState *s) {
     const int ring_alpha = inactive ? 100 : 255;
     const int inner_alpha = inactive || temp_inactive ? 100 : 255;
 
-    const float distToSpeedLimit = s->scene.controls_state.getDistToSpeedLimit();
+    const int distToSpeedLimit = int(s->scene.controls_state.getDistToSpeedLimit() * 
+                                     (s->scene.is_metric ? 1.0 : 3.28084) / 10.0) * 10;
     const bool is_map_sourced = s->scene.controls_state.getIsMapSpeedLimit();
-    char subtext[16] = "";
-    float subtext_size = 50.0;
+    const std::string distance_str = std::to_string(distToSpeedLimit) + (s->scene.is_metric ? "m" : "f");
+    const std::string offset_str = "+" + std::to_string(speed_offset);
 
-    if (distToSpeedLimit > 0.0) {
-      snprintf(subtext, sizeof(subtext), "AHEAD");
-      subtext_size = 30.0;
-    } else if (speed_offset > 0) {
-      snprintf(subtext, sizeof(subtext), "%+d", speed_offset);
-    }
+    ui_draw_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, 
+                       distToSpeedLimit > 0 ? distance_str.c_str() : offset_str.c_str(), 
+                       distToSpeedLimit > 0 ? 30.0 : 50.0, is_map_sourced, "sans-bold", ring_alpha, inner_alpha);
 
-    ui_draw_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, subtext, subtext_size, is_map_sourced, "sans-bold", ring_alpha, inner_alpha);
     s->scene.ui_speed_sgn_x = sign_center_x - speed_sgn_r;
     s->scene.ui_speed_sgn_y = sign_center_y - speed_sgn_r;
   }
