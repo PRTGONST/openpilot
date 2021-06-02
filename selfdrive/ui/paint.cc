@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <iomanip>
 
 #ifdef __APPLE__
 #include <OpenGL/gl3.h>
@@ -350,10 +351,13 @@ static void ui_draw_vision_event(UIState *s) {
     ui_fill_rect(s->vg, rect, COLOR_BLACK_ALPHA(100), 30.);
     ui_draw_rect(s->vg, rect, tcs_colors[turnControllerState], 10, 20.);
     const float turnAcc = s->scene.controls_state.getTurnAcc();
-    char acc_str[16];
-    snprintf(acc_str, sizeof(acc_str), "%.2f", turnAcc);
+
+    std::stringstream stream;
+    stream << std::fixed << std::setprecision(2) << turnAcc;
+    std::string acc_str = stream.str();
+
     nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-    ui_draw_text(s, rect.centerX(), rect.centerY(), acc_str, 48, COLOR_WHITE, "sans-bold");
+    ui_draw_text(s, rect.centerX(), rect.centerY(), acc_str.c_str(), 48, COLOR_WHITE, "sans-bold");
   } else if (s->scene.controls_state.getEngageable()) {
     // draw steering wheel
     const int radius = 96;
