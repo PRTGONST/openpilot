@@ -309,7 +309,7 @@ static void ui_draw_vision_turnspeed(UIState *s) {
   if (show) {
     const int viz_maxspeed_h = 202;
     const int viz_maxspeed_w = 184;
-    const float sign_center_x = s->viz_rect.x + bdr_s * 4 + viz_maxspeed_w + 3 * speed_sgn_r;
+    const float sign_center_x = s->viz_rect.x + bdr_s * 3.0 + viz_maxspeed_w + 3 * speed_sgn_r;
     const float sign_center_y = s->viz_rect.y + bdr_s * 1.5 + viz_maxspeed_h / 2;
     const float speed = (s->scene.is_metric ? turnSpeed * 3.6 : turnSpeed * 2.2369363) + 0.5;
 
