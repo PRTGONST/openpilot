@@ -58,10 +58,15 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   nvgStrokeWidth(s->vg, 15.0);
   nvgStrokeColor(s->vg, COLOR_RED_ALPHA(alpha));
 
+  const float A = 0.73205;
+  const float h2 = 2.0 * size / (1.0 + A);
+  const float h1 = A * h2;
+  
+
   nvgBeginPath(s->vg);
-  nvgMoveTo(s->vg, x, y - 0.73205 * size);
-  nvgLineTo(s->vg, x - size, y + size);
-  nvgLineTo(s->vg, x + size, y + size);
+  nvgMoveTo(s->vg, x, y - h1);
+  nvgLineTo(s->vg, x - size, y + h2);
+  nvgLineTo(s->vg, x + size, y + h2);
   nvgClosePath(s->vg);
 
   nvgFillColor(s->vg, COLOR_WHITE_ALPHA(alpha));
@@ -72,10 +77,10 @@ static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, floa
   const int img_y = int(y - 0.35 * size + 17);
   ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "turn_icon", 1.0);
 
-  char speedlimit_str[16];
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-  snprintf(speedlimit_str, sizeof(speedlimit_str), "%d", int(speed));
-  ui_draw_text(s, x, y + bdr_s + 5, speedlimit_str, 100., COLOR_BLACK_ALPHA(alpha), font_name);
+
+  const std::string speedlimit_str = std::to_string((int)std::nearbyint(speed));
+  ui_draw_text(s, x, y + bdr_s + 5, speedlimit_str.c_str(), 100., COLOR_BLACK_ALPHA(alpha), font_name);
 
   ui_draw_text(s, x, y + bdr_s + 45, subtext, 30., COLOR_BLACK_ALPHA(alpha), font_name);
 }
@@ -298,7 +303,8 @@ static void ui_draw_vision_turnspeed(UIState *s) {
 
   if (show) {
     const int viz_maxspeed_h = 202;
-    const float sign_center_x = s->viz_rect.right() - bdr_s * 4 - speed_sgn_r * 3;
+    const int viz_maxspeed_w = 184;
+    const float sign_center_x = s->viz_rect.x + bdr_s * 4 + viz_maxspeed_w + 3 * speed_sgn_r;
     const float sign_center_y = s->viz_rect.y + bdr_s * 1.5 + viz_maxspeed_h / 2;
     const float speed = (s->scene.is_metric ? turnSpeed * 3.6 : turnSpeed * 2.2369363) + 0.5;
 
@@ -306,13 +312,12 @@ static void ui_draw_vision_turnspeed(UIState *s) {
     const bool inactive = turnSpeedControlState == cereal::ControlsState::SpeedLimitControlState::INACTIVE;
     const int alpha = inactive ? 100 : 255;
 
-    const float distToTurn = s->scene.controls_state.getDistToTurn();
-    char subtext[16] = "";
+    const int distToTurn = int(s->scene.controls_state.getDistToTurn() * 
+                                 (s->scene.is_metric ? 1.0 : 3.28084) / 10.0) * 10;
+    const std::string distance_str = std::to_string(distToTurn) + (s->scene.is_metric ? "m" : "f");
 
-    if (distToTurn > 0.0) {
-      snprintf(subtext, sizeof(subtext), "AHEAD");
-    }
-    ui_draw_turn_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, subtext, "sans-bold", alpha);
+    ui_draw_turn_speed_sign(s, sign_center_x, sign_center_y, speed_sgn_r, speed, 
+                            distToTurn > 0 ? distance_str.c_str() : "", "sans-bold", alpha);
   }
 }
 
