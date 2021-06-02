@@ -55,27 +55,31 @@ static void ui_draw_speed_sign(UIState *s, float x, float y, int size, float spe
 }
 
 static void ui_draw_turn_speed_sign(UIState *s, float x, float y, int size, float speed, const char *subtext, const char *font_name, int alpha) {
+  const float stroke_w = 15.0;
+
   nvgLineJoin(s->vg, NVG_ROUND);
-  nvgStrokeWidth(s->vg, 15.0);
+  nvgStrokeWidth(s->vg, stroke_w);
   nvgStrokeColor(s->vg, COLOR_RED_ALPHA(alpha));
 
+  const float R = size - stroke_w;
   const float A = 0.73205;
-  const float h2 = 2.0 * size / (1.0 + A);
+  const float h2 = 2.0 * R / (1.0 + A);
   const float h1 = A * h2;
+  const float L = 4.0 * R / sqrt(3.0);
   
 
   nvgBeginPath(s->vg);
-  nvgMoveTo(s->vg, x, y - size);
-  nvgLineTo(s->vg, x - size, y + h1 + h2 - size);
-  nvgLineTo(s->vg, x + size, y + h1 + h2 - size);
+  nvgMoveTo(s->vg, x, y - R);
+  nvgLineTo(s->vg, x - L / 2.0, y + h1 + h2 - R);
+  nvgLineTo(s->vg, x + L / 2.0, y + h1 + h2 - R);
   nvgClosePath(s->vg);
 
   nvgFillColor(s->vg, COLOR_WHITE_ALPHA(alpha));
   nvgFill(s->vg);
   nvgStroke(s->vg);
 
-  const int img_size = 35;
-  const int img_y = int(y - 0.35 * size + 17);
+  const int img_size = 30;
+  const int img_y = int(y - 0.35 * R + 16);
   ui_draw_image(s, {int(x - (img_size / 2)), img_y - (img_size / 2), img_size, img_size}, "turn_icon", 1.0);
 
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
