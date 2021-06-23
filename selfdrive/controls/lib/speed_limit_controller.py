@@ -207,6 +207,7 @@ class SpeedLimitController():
     self._delay_increase = self._params.get_bool("SpeedLimitDelayIncrease")
     self._offset_enabled = self._params.get_bool("SpeedLimitPercOffset")
     self._op_enabled = False
+    self._gas_pressed = False
     self._active_jerk_limits = [0.0, 0.0]
     self._active_accel_limits = [0.0, 0.0]
     self._adapting_jerk_limits = [_MIN_ADAPTING_BRAKE_JERK, 1.0]
@@ -361,8 +362,8 @@ class SpeedLimitController():
         self.state = SpeedLimitControlState.active
     # active
     elif self.state == SpeedLimitControlState.active:
-      # If user changes the cruise speed, deactivate temporarely
-      if self._v_cruise_setpoint_changed:
+      # If user changes the cruise speed or presses the gas pedal, deactivate temporarely
+      if self._v_cruise_setpoint_changed or self._gas_pressed:
         self.state = SpeedLimitControlState.tempInactive
       # Go to adapting if the speed offset goes below threshold.
       elif self._v_offset < _SPEED_OFFSET_TH:
@@ -413,6 +414,7 @@ class SpeedLimitController():
   def update(self, enabled, v_ego, a_ego, sm, v_cruise_setpoint, accel_limits, jerk_limits,
              events=Events()):
     self._op_enabled = enabled
+    self._gas_pressed = sm['carState'].gasPressed
     self._v_ego = v_ego
     self._a_ego = a_ego
 
