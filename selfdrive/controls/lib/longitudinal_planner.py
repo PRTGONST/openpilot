@@ -92,6 +92,7 @@ class Planner():
     self.first_loop = True
 
     self.events = Events()
+    self.prev_cruise = 0.0
 
   def choose_solution(self, v_cruise_setpoint, enabled):
     if enabled:
@@ -160,11 +161,13 @@ class Planner():
     self.v_acc_start = self.v_acc_next
     self.a_acc_start = self.a_acc_next
 
-    jerk_limits = [0., 0.]
-    accel_limits_turns = [0., 0.]
+    jerk_limits = [-.1, .1]
+    accel_limits_turns = [-.1, .1]
+    cruise_changed = v_cruise_setpoint != self.prev_cruise
+    self.prev_cruise = v_cruise_setpoint
 
     # Calculate speed for normal cruise control
-    if enabled and not self.first_loop and not sm['carState'].gasPressed:
+    if enabled and not self.first_loop and not sm['carState'].gasPressed and not cruise_changed:
       accel_limits = [float(x) for x in calc_cruise_accel_limits(v_ego, following)]
       jerk_limits = [min(-0.1, accel_limits[0]), max(0.1, accel_limits[1])]  # TODO: make a separate lookup for jerk tuning
       accel_limits_turns = limit_accel_in_turns(v_ego, sm['carState'].steeringAngleDeg, accel_limits, self.CP)
@@ -206,7 +209,7 @@ class Planner():
     self.speed_limit_controller.update(enabled, self.v_acc_start, self.a_acc_start, sm, v_cruise_setpoint,
                                        accel_limits_turns, jerk_limits, self.events)
     # update turn speed solution calculation.
-    self.turn_speed_controller.update(enabled, self.v_acc_start, self.a_acc_start, sm, accel_limits_turns, jerk_limits)
+    self.turn_speed_controller.update(enabled, self.v_acc_start, self.a_acc_start, sm, accel_limits_turns, jerk_limits, cruise_changed)
 
     self.choose_solution(v_cruise_setpoint, enabled)
 
