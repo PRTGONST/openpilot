@@ -323,8 +323,7 @@ class SpeedLimitController():
       return
 
     # In any case, we deactivate the speed limit controller temporarily if the user changes the cruise speed
-    # or if gas is pressed (to support gas override implementations).
-    if self._v_cruise_setpoint_changed or self._gas_pressed:
+    if self._v_cruise_setpoint_changed:
       self.state = SpeedLimitControlState.tempInactive
       return
 
