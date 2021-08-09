@@ -318,7 +318,7 @@ class SpeedLimitController():
     self._v_cruise_setpoint_prev = self._v_cruise_setpoint
     self._speed_limit_set_prev = self._speed_limit_set
 
-  def _state_transition(self, sm):
+  def _state_transition(self):
     self._state_prev = self._state
 
     # In any case, if op is disabled, or speed limit control is disabled
@@ -328,8 +328,7 @@ class SpeedLimitController():
       return
 
     # In any case, we deactivate the speed limit controller temporarily if the user changes the cruise speed
-    # or if gas is pressed (to support gas override implementations).
-    if self._v_cruise_setpoint_changed or sm['carState'].gasPressed:
+    if self._v_cruise_setpoint_changed:
       self.state = SpeedLimitControlState.tempInactive
       return
 
@@ -358,13 +357,13 @@ class SpeedLimitController():
       if self._v_offset < _SPEED_OFFSET_TH:
         self.state = SpeedLimitControlState.adapting
 
-  def _update_solution(self):
+  def _update_solution(self, sm):
     # Calculate acceleration limits and speed based on state.
     acc_limits = self._acc_limits
     v_limit = self._v_cruise_setpoint
 
-    # inactive or tempInactive state
-    if self.state <= SpeedLimitControlState.tempInactive:
+    # inactive or tempInactive state or gas pressed
+    if self.state <= SpeedLimitControlState.tempInactive or sm['carState'].gasPressed:
       # Preserve current values
       pass
     # adapting
@@ -402,6 +401,6 @@ class SpeedLimitController():
 
     self._update_params()
     self._update_calculations()
-    self._state_transition(sm)
-    self._update_solution()
+    self._state_transition()
+    self._update_solution(sm)
     self._update_events(events)
