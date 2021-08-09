@@ -15,6 +15,8 @@ from selfdrive.controls.lib.lead_mpc import LeadMpc
 from selfdrive.controls.lib.long_mpc import LongitudinalMpc
 from selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX, CONTROL_N
 from selfdrive.controls.lib.vision_turn_controller import VisionTurnController
+from selfdrive.controls.lib.speed_limit_controller import SpeedLimitController, SpeedLimitResolver
+from selfdrive.controls.lib.events import Events
 from selfdrive.swaglog import cloudlog
 
 LON_MPC_STEP = 0.2  # first step is 0.2s
@@ -67,7 +69,8 @@ class Planner():
     self.a_desired_trajectory = np.zeros(CONTROL_N)
 
     self.vision_turn_controller = VisionTurnController(CP)
-
+    self.speed_limit_controller = SpeedLimitController()
+    self.events = Events()
 
   def update(self, sm, CP):
     cur_time = sec_since_boot()
@@ -157,11 +160,20 @@ class Planner():
     longitudinalPlan.visionTurnControllerState = self.vision_turn_controller.state
     longitudinalPlan.visionTurnSpeed = self.vision_turn_controller.v_turn
 
+    longitudinalPlan.speedLimitControlState = self.speed_limit_controller.state
+    longitudinalPlan.speedLimit = float(self.speed_limit_controller.speed_limit)
+    longitudinalPlan.speedLimitOffset = float(self.speed_limit_controller.speed_limit_offset)
+    longitudinalPlan.distToSpeedLimit = float(self.speed_limit_controller.distance)
+    longitudinalPlan.isMapSpeedLimit = bool(self.speed_limit_controller.source == SpeedLimitResolver.Source.map_data)
+    longitudinalPlan.eventsDEPRECATED = self.events.to_msg()
+
     pm.send('longitudinalPlan', plan_send)
 
   def cruise_solution(self, enabled, v_ego, a_ego, acc_limits, v_cruise, sm):
     # Update controllers
     self.vision_turn_controller.update(enabled, v_ego, a_ego, v_cruise, acc_limits, sm)
+    self.events = Events()
+    self.speed_limit_controller.update(enabled, v_ego, sm, v_cruise, acc_limits, self.events)
 
     # Pick slowest solution
     v_solutions = {'cruise': v_cruise}
@@ -170,6 +182,10 @@ class Planner():
     if self.vision_turn_controller.is_active:
       v_solutions['turn'] = self.vision_turn_controller.v_turn
       limits_solutions['turn'] = self.vision_turn_controller.acc_limits
+
+    if self.speed_limit_controller.is_active:
+      v_solutions['limit'] = self.speed_limit_controller.v_limit
+      limits_solutions['limit'] = self.speed_limit_controller.acc_limits
 
     source = min(v_solutions, key=v_solutions.get)
 
