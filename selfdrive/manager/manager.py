@@ -41,6 +41,7 @@ def manager_init():
     ("SpeedLimitControl", "1"),
     ("SpeedLimitPercOffset", "1"),
     ("SpeedLimitDelayIncrease", "1"),
+    ("TurnSpeedControl", "1"),
     ("TurnVisionControl", "1"),
   ]
   if not PC:
