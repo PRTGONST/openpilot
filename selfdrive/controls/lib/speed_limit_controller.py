@@ -5,16 +5,14 @@ from enum import IntEnum
 from cereal import log, car
 from common.params import Params
 from common.realtime import sec_since_boot
+from selfdrive.controls.lib.drive_helpers import LIMIT_ADAPT_ACC, LIMIT_MIN_ACC, LIMIT_MAX_ACC, LIMIT_SPEED_OFFSET_TH, \
+    LIMIT_MAX_MAP_DATA_AGE, CONTROL_N
 from selfdrive.controls.lib.events import Events
+from selfdrive.modeld.constants import T_IDXS
 
 
 _PARAMS_UPDATE_PERIOD = 2.  # secs. Time between parameter updates.
 _WAIT_TIME_LIMIT_RISE = 2.0  # Waiting time before raising the speed limit.
-
-_SPEED_OFFSET_TH = -1.  # m/s Maximum offset between speed limit and current speed for adapting state.
-_LIMIT_ADAPT_ACC = -1.0  # Ideal acceleration for the adapting (braking) phase when approaching speed limits.
-
-_MAX_MAP_DATA_AGE = 10.0  # s Maximum time to hold to map data, then consider it invalid.
 
 # Lookup table for speed limit percent offset depending on speed.
 _LIMIT_PERC_OFFSET_V = [0.1, 0.05, 0.038]  # 55, 105, 135 km/h
@@ -98,7 +96,7 @@ class SpeedLimitResolver():
 
     # Calculate the age of the gps fix. Ignore if too old.
     gps_fix_age = time.time() - map_data.lastGpsTimestamp * 1e-3
-    if gps_fix_age > _MAX_MAP_DATA_AGE:
+    if gps_fix_age > LIMIT_MAX_MAP_DATA_AGE:
       self._limit_solutions[SpeedLimitResolver.Source.map_data] = 0.
       self._distance_solutions[SpeedLimitResolver.Source.map_data] = 0.
       _debug(f'SL: Ignoring map data as is too old. Age: {gps_fix_age}')
@@ -127,8 +125,8 @@ class SpeedLimitResolver():
     self._next_speed_limit_prev = 0.
 
     # Calculated the time needed to adapt to the new limit and the corresponding distance.
-    adapt_time = (next_speed_limit - self._v_ego) / _LIMIT_ADAPT_ACC
-    adapt_distance = self._v_ego * adapt_time + 0.5 * _LIMIT_ADAPT_ACC * adapt_time**2
+    adapt_time = (next_speed_limit - self._v_ego) / LIMIT_ADAPT_ACC
+    adapt_distance = self._v_ego * adapt_time + 0.5 * LIMIT_ADAPT_ACC * adapt_time**2
 
     # When we detect we are close enough, we provide the next limit value and track it.
     if distance_to_speed_limit_ahead <= adapt_distance:
@@ -201,33 +199,30 @@ class SpeedLimitController():
     self._delay_increase = self._params.get_bool("SpeedLimitDelayIncrease")
     self._offset_enabled = self._params.get_bool("SpeedLimitPercOffset")
     self._op_enabled = False
-    self._acc_limits = [0.0, 0.0]
-    self._v_turn = 0.0
-    self._v_ego = 0.0
-    self._v_offset = 0.0
-    self._v_cruise_setpoint = 0.0
-    self._v_cruise_setpoint_prev = 0.0
+    self._v_ego = 0.
+    self._a_ego = 0.
+    self._v_offset = 0.
+    self._v_cruise_setpoint = 0.
+    self._v_cruise_setpoint_prev = 0.
     self._v_cruise_setpoint_changed = False
-    self._speed_limit_set = 0.0
-    self._speed_limit_set_prev = 0.0
-    self._speed_limit_set_change = 0.0
-    self._distance_set = 0.0
-    self._speed_limit = 0.0
-    self._speed_limit_prev = 0.0
+    self._speed_limit_set = 0.
+    self._speed_limit_set_prev = 0.
+    self._speed_limit_set_change = 0.
+    self._distance_set = 0.
+    self._speed_limit = 0.
+    self._speed_limit_prev = 0.
     self._speed_limit_changed = False
     self._distance = 0.
     self._source = SpeedLimitResolver.Source.none
-    self._last_speed_limit_set_change_ts = 0.0
+    self._last_speed_limit_set_change_ts = 0.
     self._state = SpeedLimitControlState.inactive
     self._state_prev = SpeedLimitControlState.inactive
+    self._gas_pressed = False
+    self._a_target = 0.
 
   @property
-  def v_limit(self):
-    return float(self._v_limit) if self.is_active else self._v_cruise_setpoint
-
-  @property
-  def acc_limits(self):
-    return self._acc_limits
+  def a_target(self):
+    return self._a_target if self.is_active else self._a_ego
 
   @property
   def state(self):
@@ -322,8 +317,8 @@ class SpeedLimitController():
     self._state_prev = self._state
 
     # In any case, if op is disabled, or speed limit control is disabled
-    # or the reported speed limit is 0, deactivate.
-    if not self._op_enabled or not self._is_enabled or self._speed_limit == 0:
+    # or the reported speed limit is 0 or gas is pressed, deactivate.
+    if not self._op_enabled or not self._is_enabled or self._speed_limit == 0 or self._gas_pressed:
       self.state = SpeedLimitControlState.inactive
       return
 
@@ -336,7 +331,7 @@ class SpeedLimitController():
     if self.state == SpeedLimitControlState.inactive:
       # If the limit speed offset is negative (i.e. reduce speed) and lower than threshold
       # we go to adapting state to quickly reduce speed, otherwise we go directly to active
-      if self._v_offset < _SPEED_OFFSET_TH:
+      if self._v_offset < LIMIT_SPEED_OFFSET_TH:
         self.state = SpeedLimitControlState.adapting
       else:
         self.state = SpeedLimitControlState.active
@@ -349,35 +344,34 @@ class SpeedLimitController():
     # adapting
     elif self.state == SpeedLimitControlState.adapting:
       # Go to active once the speed offset is over threshold.
-      if self._v_offset >= _SPEED_OFFSET_TH:
+      if self._v_offset >= LIMIT_SPEED_OFFSET_TH:
         self.state = SpeedLimitControlState.active
     # active
     elif self.state == SpeedLimitControlState.active:
       # Go to adapting if the speed offset goes below threshold.
-      if self._v_offset < _SPEED_OFFSET_TH:
+      if self._v_offset < LIMIT_SPEED_OFFSET_TH:
         self.state = SpeedLimitControlState.adapting
 
-  def _update_solution(self, sm):
-    # Calculate acceleration limits and speed based on state.
-    acc_limits = self._acc_limits
-    v_limit = self._v_cruise_setpoint
-
-    # inactive or tempInactive state or gas pressed
-    if self.state <= SpeedLimitControlState.tempInactive or sm['carState'].gasPressed:
+  def _update_solution(self):
+    # inactive or tempInactive state
+    if self.state <= SpeedLimitControlState.tempInactive:
       # Preserve current values
-      pass
+      a_target = self._a_ego
     # adapting
     elif self.state == SpeedLimitControlState.adapting:
-      # When adapting we target the speed limit speed with the adapt acceleration if lower than provided limits.
-      v_limit = self.speed_limit_offseted
-      acc_limits[0] = min(_LIMIT_ADAPT_ACC, acc_limits[0])
+      # When adapting we target to achieve the speed limit on the distance if not there yet,
+      # otherwise try to keep the speed constant around the control time horizon.
+      if self.distance > 0:
+        a_target = (self.speed_limit_offseted**2 - self._v_ego**2) / (2. * self.distance)
+      else:
+        a_target = self._v_offset / T_IDXS[CONTROL_N]
     # active
     elif self.state == SpeedLimitControlState.active:
-      v_limit = self.speed_limit_offseted
+      # When active we are trying to keep the speed constant around the control time horizon.
+      a_target = self._v_offset / T_IDXS[CONTROL_N]
 
-    # update solution values.
-    self._v_limit = v_limit
-    self._acc_limits = acc_limits
+    # Keep solution limited.
+    self._a_target = np.clip(a_target, LIMIT_MIN_ACC, LIMIT_MAX_ACC)
 
   def _update_events(self, events):
     if not self.is_active:
@@ -391,16 +385,17 @@ class SpeedLimitController():
     elif self._speed_limit_set_change < 0:
       events.add(EventName.speedLimitDecrease)
 
-  def update(self, enabled, v_ego, sm, v_cruise_setpoint, acc_limits, events=Events()):
+  def update(self, enabled, v_ego, a_ego, sm, v_cruise_setpoint, events=Events()):
     self._op_enabled = enabled
     self._v_ego = v_ego
+    self._a_ego = a_ego
+    self._gas_pressed = sm['carState'].gasPressed
 
     self._speed_limit_set, self._distance_set, self._source = self._resolver.resolve(v_ego, self.speed_limit, sm)
     self._v_cruise_setpoint = v_cruise_setpoint
-    self._acc_limits = acc_limits
 
     self._update_params()
     self._update_calculations()
     self._state_transition()
-    self._update_solution(sm)
+    self._update_solution()
     self._update_events(events)
