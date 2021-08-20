@@ -192,10 +192,10 @@ class VisionTurnController():
       path_poly = np.array([0., 0., 0., 0.])
 
     current_curvature = abs(
-        sm['carState'].steeringAngleDeg * CV.DEG_TO_RAD / (self._CP.steerRatio * self._CP.wheelbase))
+      sm['carState'].steeringAngleDeg * CV.DEG_TO_RAD / (self._CP.steerRatio * self._CP.wheelbase))
     self._current_lat_acc = current_curvature * self._v_ego**2
     self._max_v_for_current_curvature = math.sqrt(_A_LAT_REG_MAX / current_curvature) if current_curvature > 0 \
-        else V_CRUISE_MAX * CV.KPH_TO_MS
+      else V_CRUISE_MAX * CV.KPH_TO_MS
 
     pred_curvatures = eval_curvature(path_poly, _EVAL_RANGE)
     max_pred_curvature = np.amax(pred_curvatures)

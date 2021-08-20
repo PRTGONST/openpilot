@@ -170,17 +170,17 @@ class Planner():
     self.vision_turn_controller.update(enabled, v_ego, a_ego, v_cruise, sm)
 
     a_sol = {
-        'cruise': a_ego,  # Irrelevant
-        'lead0': a_ego,   # Irrelevant
-        'lead1': a_ego,   # Irrelevant
-        'turn': self.vision_turn_controller.a_target,
+      'cruise': a_ego,  # Irrelevant
+      'lead0': a_ego,   # Irrelevant
+      'lead1': a_ego,   # Irrelevant
+      'turn': self.vision_turn_controller.a_target,
     }
 
     active_sol = {
-        'cruise': True,  # Irrelevant
-        'lead0': True,   # Irrelevant
-        'lead1': True,   # Irrelevant
-        'turn': self.vision_turn_controller.is_active,
+      'cruise': True,  # Irrelevant
+      'lead0': True,   # Irrelevant
+      'lead1': True,   # Irrelevant
+      'turn': self.vision_turn_controller.is_active,
     }
 
     return a_sol, active_sol
