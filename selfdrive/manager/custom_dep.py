@@ -42,7 +42,7 @@ def install_dep(spinner):
       if e.errno != errno.EEXIST:
         raise
     my_env = os.environ.copy()
-    my_env['TMPDIR'] = '/data/tmp'
+    my_env['TMPDIR'] = TMP_DIR
 
     pip_target = [f'--target={PYEXTRA_DIR}']
     packages = []
