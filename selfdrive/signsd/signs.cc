@@ -16,10 +16,6 @@
 
 ExitHandler do_exit;
 
-// globals
-mat3 cur_transform;
-std::mutex transform_lock;
-
 void run_model(VisionIpcClient &vipc_client) {
   // messaging
   SubMaster sm({"roadCameraState"});
@@ -33,27 +29,21 @@ void run_model(VisionIpcClient &vipc_client) {
     VisionBuf *buf = vipc_client.recv(&extra);
     if (buf == nullptr) continue;
 
-    transform_lock.lock();
-    mat3 model_transform = cur_transform;
-    const bool run_model_this_iter = true;
-    transform_lock.unlock();
-
     // TODO: path planner timeout?
     sm.update(0);
     frame_id = sm["roadCameraState"].getRoadCameraState().getFrameId();
 
-    if (run_model_this_iter) {
-      run_count++;
+    run_count++;
 
-      double mt1 = millis_since_boot();
-      // ModelDataRaw model_buf = model_eval_frame(&model, buf->buf_cl, buf->width, buf->height, model_transform, vec_desire);
-      LOGW("ran iteration with buffer size: %d (%d x %d)", buf->len, buf->width, buf->height);
-
+    double mt1 = millis_since_boot();
+    // ModelDataRaw model_buf = model_eval_frame(&model, buf->buf_cl, buf->width, buf->height, model_transform, vec_desire);
+    LOGW("ran iteration with buffer size: %d (%d x %d)", buf->len, buf->width, buf->height);
 
 
-      double mt2 = millis_since_boot();
-      float model_execution_time = (mt2 - mt1) / 1000.0;
-    }
+
+    double mt2 = millis_since_boot();
+    float model_execution_time = (mt2 - mt1) / 1000.0;
+    LOGW("model_execution_time: %.2f", model_execution_time);
   }
 }
 
