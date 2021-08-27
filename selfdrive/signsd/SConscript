@@ -28,8 +28,7 @@ else:
     del libs[libs.index('SNPE')]
     del libs[libs.index('symphony-cpu')]
 
-
-lenv.Program('_signs', [
+lenv.Program('signs', [
     "signs.cc",
   ], LIBS=libs)
 
