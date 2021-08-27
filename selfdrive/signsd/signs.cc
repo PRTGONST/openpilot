@@ -20,8 +20,7 @@ void run_model(VisionIpcClient &vipc_client) {
   // messaging
   SubMaster sm({"roadCameraState"});
 
-  uint32_t frame_id = 0, last_vipc_frame_id = 0;
-  double last = 0;
+  uint32_t frame_id = 0;
   uint32_t run_count = 0;
 
   while (!do_exit) {
