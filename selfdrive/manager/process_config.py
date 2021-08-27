@@ -37,6 +37,7 @@ procs = [
   PythonProcess("uploader", "selfdrive.loggerd.uploader", persistent=True),
   PythonProcess("mapd", "selfdrive.mapd.mapd"),
   PythonProcess("signsd", "selfdrive.signsd.signsd"),
+  NativeProcess("signd", "selfdrive/signsd", ["./signd"]),
 ]
 
 managed_processes = {p.name: p for p in procs}
