@@ -4,11 +4,14 @@
 
 #include <eigen3/Eigen/Dense>
 
-#include "selfdrive/signsd/sings.h"
+#include "selfdrive/common/mat.h"
 #include "cereal/messaging/messaging.h"
 #include "cereal/visionipc/visionipc_client.h"
 #include "selfdrive/common/clutil.h"
+#include "selfdrive/common/swaglog.h"
 #include "selfdrive/common/util.h"
+#include "selfdrive/common/params.h"
+#include "selfdrive/hardware/hw.h"
 
 
 ExitHandler do_exit;
