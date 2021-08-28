@@ -68,7 +68,7 @@ class CarInterface(CarInterfaceBase):
       ret.lateralTuning.pid.kiBP = [0.]
       ret.lateralTuning.pid.kiV = [0.005]
       ret.lateralTuning.pid.kf = 0.0022 # !!! ONLY for (angle * vEgo) feedforward !!!
-      ret.steerRateCost = 1.0 # TODO
+      ret.steerRateCost = 0.5 # TODO
       ret.steerActuatorDelay = 0.21 # TODO by cross-correlation and stack latency
 
       ret.longitudinalTuning.kpV = [1.7, 1.3]
