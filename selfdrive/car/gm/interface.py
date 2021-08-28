@@ -63,13 +63,13 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatioRear = 0.
       ret.centerToFront = 0.45 * ret.wheelbase # from Volt Gen 1
 
-      ret.lateralTuning.pid.kpBP = [0.]
-      ret.lateralTuning.pid.kpV = [0.03] # kp linear with speed
+      ret.lateralTuning.pid.kpBP = [0., 40.]
+      ret.lateralTuning.pid.kpV = [0., 0.2] # kp linear with speed
       ret.lateralTuning.pid.kiBP = [0.]
       ret.lateralTuning.pid.kiV = [0.005]
-      ret.lateralTuning.pid.kf = 0.005814 # !!! ONLY for (angle * vEgo) feedforward and sqrt(steer) !!!
+      ret.lateralTuning.pid.kf = 0.0022 # !!! ONLY for (angle * vEgo) feedforward !!!
       ret.steerRateCost = 1.0 # TODO
-      ret.steerActuatorDelay = 0.2 # TODO by cross-correlation and stack latency
+      ret.steerActuatorDelay = 0.21 # TODO by cross-correlation and stack latency
 
       ret.longitudinalTuning.kpV = [1.7, 1.3]
       ret.longitudinalTuning.kiV = [0.36]
