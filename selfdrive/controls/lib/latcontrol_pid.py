@@ -3,6 +3,7 @@ import math
 from selfdrive.controls.lib.pid import PIController
 from selfdrive.controls.lib.drive_helpers import get_steer_max
 from cereal import log
+import numpy as np
 
 
 class LatControlPID():
@@ -33,8 +34,9 @@ class LatControlPID():
       self.pid.neg_limit = -steers_max
 
       # TODO: feedforward something based on lat_plan.rateSteers
-      steer_feedforward = angle_steers_des_no_offset  # offset does not contribute to resistive torque
-      steer_feedforward *= CS.vEgo**2  # proportional to realigning tire momentum (~ lateral accel)
+      # offset does not contribute to resistive torque
+      steer_feedforward = np.sqrt(np.fabs(angle_steers_des_no_offset)) * (CS.vEgo + 3.57)
+      steer_feedforward = np.copysign(steer_feedforward, angle_steers_des_no_offset)
 
       deadzone = 0.0
 
