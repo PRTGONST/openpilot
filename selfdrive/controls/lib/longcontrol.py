@@ -1,8 +1,6 @@
 from cereal import log
 from common.numpy_fast import clip, interp
 from selfdrive.controls.lib.pid import PIController
-from selfdrive.controls.lib.drive_helpers import CONTROL_N
-from selfdrive.modeld.constants import T_IDXS
 
 LongCtrlState = log.ControlsState.LongControlState
 
@@ -11,7 +9,9 @@ STOPPING_TARGET_SPEED_OFFSET = 0.01
 STARTING_TARGET_SPEED = 0.5
 BRAKE_THRESHOLD_TO_PID = 0.2
 
-BRAKE_STOPPING_TARGET = 0.5  # apply at least this amount of brake to maintain the vehicle stationary
+STOPPING_BRAKE_RATE = 0.2  # brake_travel/s while trying to stop
+STARTING_BRAKE_RATE = 0.8  # brake_travel/s while releasing on restart
+BRAKE_STOPPING_TARGET = 0.25 # apply at least this amount of brake to maintain the vehicle stationary
 
 RATE = 100.0
 DEFAULT_LONG_LAG = 0.15
@@ -69,20 +69,8 @@ class LongControl():
     self.pid.reset()
     self.v_pid = v_pid
 
-  def update(self, active, CS, CP, long_plan):
+  def update(self, active, CS, v_target, v_target_future, a_target, CP):
     """Update longitudinal control. This updates the state machine and runs a PID loop"""
-    # Interp control trajectory
-    # TODO estimate car specific lag, use .15s for now
-    if len(long_plan.speeds) == CONTROL_N:
-      v_target = interp(DEFAULT_LONG_LAG, T_IDXS[:CONTROL_N], long_plan.speeds)
-      v_target_future = long_plan.speeds[-1]
-      a_target = interp(DEFAULT_LONG_LAG, T_IDXS[:CONTROL_N], long_plan.accels)
-    else:
-      v_target = 0.0
-      v_target_future = 0.0
-      a_target = 0.0
-
-
     # Actuation limits
     gas_max = interp(CS.vEgo, CP.gasMaxBP, CP.gasMaxV)
     brake_max = interp(CS.vEgo, CP.brakeMaxBP, CP.brakeMaxV)
@@ -134,4 +122,4 @@ class LongControl():
     final_gas = clip(output_gb, 0., gas_max)
     final_brake = -clip(output_gb, -brake_max, 0.)
 
-    return final_gas, final_brake, v_target, a_target
+    return final_gas, final_brake

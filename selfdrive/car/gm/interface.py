@@ -6,14 +6,67 @@ from selfdrive.car.gm.values import CAR, CruiseButtons, \
 from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, gen_empty_fingerprint
 from selfdrive.car.interfaces import CarInterfaceBase
 
+FOLLOW_AGGRESSION = 0.15 # (Acceleration/Decel aggression) Lower is more aggressive
+
 ButtonType = car.CarState.ButtonEvent.Type
 EventName = car.CarEvent.EventName
+
+# checks that all key:item pairs in f1 are present in f2 (not the other way around)
+def fingerprint_match(f1, f2):
+  match = isinstance(f1, dict) and isinstance(f2, dict)
+  for k,v in f1.items():
+    if not match:
+      break
+    m = f2.get(k)
+    if not m or m != v:
+      match = False
+  return match
 
 class CarInterface(CarInterfaceBase):
 
   @staticmethod
   def compute_gb(accel, speed):
-    return float(accel) / 4.0
+  	# Ripped from compute_gb_honda in Honda's interface.py. Works well off shelf but may need more tuning
+    creep_brake = 0.0
+    creep_speed = 2.68
+    creep_brake_value = 0.10
+    if speed < creep_speed:
+      creep_brake = (creep_speed - speed) / creep_speed * creep_brake_value
+    return float(accel) / 4.8 - creep_brake
+
+
+  @staticmethod
+  def calc_accel_override(a_ego, a_target, v_ego, v_target):
+
+    # normalized max accel. Allowing max accel at low speed causes speed overshoots
+    max_accel_bp = [10, 20]    # m/s
+    max_accel_v = [0.85, 1.0] # unit of max accel
+    max_accel = interp(v_ego, max_accel_bp, max_accel_v)
+
+    # limit the pcm accel cmd if:
+    # - v_ego exceeds v_target, or
+    # - a_ego exceeds a_target and v_ego is close to v_target
+
+    eA = a_ego - a_target
+    valuesA = [1.0, 0.1]
+    bpA = [0.3, 1.1]
+
+    eV = v_ego - v_target
+    valuesV = [1.0, 0.1]
+    bpV = [0.0, 0.5]
+
+    valuesRangeV = [1., 0.]
+    bpRangeV = [-1., 0.]
+
+    # only limit if v_ego is close to v_target
+    speedLimiter = interp(eV, bpV, valuesV)
+    accelLimiter = max(interp(eA, bpA, valuesA), interp(eV, bpRangeV, valuesRangeV))
+
+    # accelOverride is more or less the max throttle allowed to pcm: usually set to a constant
+    # unless aTargetMax is very high and then we scale with it; this help in quicker restart
+
+    return float(max(max_accel, a_target / FOLLOW_AGGRESSION)) * min(speedLimiter, accelLimiter)
+  
 
   @staticmethod
   def get_params(candidate, fingerprint=gen_empty_fingerprint(), car_fw=None):
@@ -143,8 +196,15 @@ class CarInterface(CarInterfaceBase):
 
     ret = self.CS.update(self.cp)
 
+    cruiseEnabled = self.CS.pcm_acc_status != AccState.OFF
+    ret.cruiseState.enabled = cruiseEnabled
+
+    ret.readdistancelines = self.CS.follow_level
+
     ret.canValid = self.cp.can_valid
     ret.steeringRateLimited = self.CC.steer_rate_limited if self.CC is not None else False
+
+    ret.engineRPM = self.CS.engineRPM
 
     buttonEvents = []
 
@@ -161,6 +221,8 @@ class CarInterface(CarInterfaceBase):
         if not (ret.cruiseState.enabled and ret.standstill):
           be.type = ButtonType.accelCruise  # Suppress resume button if we're resuming from stop so we don't adjust speed.
       elif but == CruiseButtons.DECEL_SET:
+        if not cruiseEnabled and not self.CS.lkMode:
+          self.lkMode = True
         be.type = ButtonType.decelCruise
       elif but == CruiseButtons.CANCEL:
         be.type = ButtonType.cancel
@@ -169,6 +231,14 @@ class CarInterface(CarInterfaceBase):
       buttonEvents.append(be)
 
     ret.buttonEvents = buttonEvents
+
+    if cruiseEnabled and self.CS.lka_button and self.CS.lka_button != self.CS.prev_lka_button:
+      self.CS.lkMode = not self.CS.lkMode
+
+    if self.CS.distance_button and self.CS.distance_button != self.CS.prev_distance_button:
+       self.CS.follow_level -= 1
+       if self.CS.follow_level < 1:
+         self.CS.follow_level = 3
 
     events = self.create_common_events(ret, pcm_enable=False)
 
@@ -180,6 +250,36 @@ class CarInterface(CarInterfaceBase):
       events.add(EventName.resumeRequired)
     if self.CS.pcm_acc_status == AccState.FAULTED:
       events.add(EventName.accFaulted)
+    if ret.vEgo < self.CP.minSteerSpeed:
+      events.add(car.CarEvent.EventName.belowSteerSpeed)
+    if self.CS.autoHoldActivated:
+      events.add(car.CarEvent.EventName.autoHoldActivated)
+    # handle button presses
+    for b in ret.buttonEvents:
+      # do enable on both accel and decel buttons
+      if b.type in [ButtonType.accelCruise, ButtonType.decelCruise] and not b.pressed:
+        events.add(EventName.buttonEnable)
+      # do disable on button down
+      if b.type == ButtonType.cancel and b.pressed:
+        events.add(EventName.buttonCancel)
+
+    ret.events = events.to_msg()
+
+    # copy back carState packet to CS
+    self.CS.out = ret.as_reader()
+
+    return self.CS.out
+
+    events = self.create_common_events(ret, pcm_enable=False)
+
+    if ret.vEgo < self.CP.minEnableSpeed:
+      events.add(EventName.belowEngageSpeed)
+    if self.CS.park_brake:
+      events.add(EventName.parkBrake)
+    if ret.cruiseState.standstill:
+      events.add(EventName.resumeRequired)
+    if self.CS.pcm_acc_status == AccState.FAULTED:
+      events.add(EventName.controlsFailed)
     if ret.vEgo < self.CP.minSteerSpeed:
       events.add(car.CarEvent.EventName.belowSteerSpeed)
 
@@ -214,4 +314,15 @@ class CarInterface(CarInterfaceBase):
                                c.hudControl.leadVisible, c.hudControl.visualAlert)
 
     self.frame += 1
+
+    # Release Auto Hold and creep smoothly when regenpaddle pressed
+    if self.CS.regenPaddlePressed and self.CS.autoHold:
+      self.CS.autoHoldActive = False
+
+    if self.CS.autoHold and not self.CS.autoHoldActive and not self.CS.regenPaddlePressed:
+      if self.CS.out.vEgo > 0.02:
+        self.CS.autoHoldActive = True
+      elif self.CS.out.vEgo < 0.01 and self.CS.out.brakePressed:
+        self.CS.autoHoldActive = True
+
     return can_sends

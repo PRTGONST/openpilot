@@ -14,11 +14,28 @@ class CarState(CarStateBase):
     can_define = CANDefine(DBC[CP.carFingerprint]["pt"])
     self.shifter_values = can_define.dv["ECMPRDNL"]["PRNDL"]
 
+    self.prev_distance_button = 0
+    self.prev_lka_button = 0
+    self.lka_button = 0
+    self.distance_button = 0
+    self.follow_level = 2
+    self.lkMode = True
+    self.autoHold = True
+    self.autoHoldActive = False
+    self.autoHoldActivated = False
+    self.regenPaddlePressed = 0
+    self.cruiseMain = False
+    self.engineRPM = 0
+
   def update(self, pt_cp):
     ret = car.CarState.new_message()
 
     self.prev_cruise_buttons = self.cruise_buttons
     self.cruise_buttons = pt_cp.vl["ASCMSteeringButton"]["ACCButtons"]
+    self.prev_lka_button = self.lka_button
+    self.lka_button = pt_cp.vl["ASCMSteeringButton"]["LKAButton"]
+    self.prev_distance_button = self.distance_button
+    self.distance_button = pt_cp.vl["ASCMSteeringButton"]["DistanceButton"]
 
     ret.wheelSpeeds.fl = pt_cp.vl["EBCMWheelSpdFront"]["FLWheelSpd"] * CV.KPH_TO_MS
     ret.wheelSpeeds.fr = pt_cp.vl["EBCMWheelSpdFront"]["FRWheelSpd"] * CV.KPH_TO_MS
@@ -45,8 +62,7 @@ class CarState(CarStateBase):
 
     # 0 inactive, 1 active, 2 temporarily limited, 3 failed
     self.lkas_status = pt_cp.vl["PSCMStatus"]["LKATorqueDeliveredStatus"]
-    ret.steerWarning = self.lkas_status == 2
-    ret.steerError = self.lkas_status == 3
+    ret.steerWarning = self.lkas_status not in [0, 1]
 
     # 1 - open, 0 - closed
     ret.doorOpen = (pt_cp.vl["BCMDoorBeltStatus"]["FrontLeftDoor"] == 1 or
@@ -67,12 +83,23 @@ class CarState(CarStateBase):
     ret.brakePressed = ret.brake > 1e-5
     # Regen braking is braking
     if self.car_fingerprint == CAR.VOLT:
-      ret.brakePressed = ret.brakePressed or bool(pt_cp.vl["EBCMRegenPaddle"]["RegenPaddle"])
-
+      self.regenPaddlePressed = bool(pt_cp.vl["EBCMRegenPaddle"]['RegenPaddle'])
+      ret.brakePressed = ret.brakePressed or self.regenPaddlePressed
+      
     ret.cruiseState.enabled = self.pcm_acc_status != AccState.OFF
-    ret.cruiseState.standstill = self.pcm_acc_status == AccState.STANDSTILL
+    ret.cruiseState.standstill = False
+
+    ret.steeringTorqueEps = pt_cp.vl["PSCMStatus"]['LKATorqueDelivered']
+    self.engineRPM = pt_cp.vl["ECMEngineStatus"]['EngineRPM']
+
+    # AutoHold 
+    ret.autoHoldActivated = self.autoHoldActivated
 
     return ret
+
+
+  def get_follow_level(self):
+    return self.follow_level
 
   @staticmethod
   def get_can_parser(CP):
