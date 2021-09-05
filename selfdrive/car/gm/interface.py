@@ -11,17 +11,6 @@ FOLLOW_AGGRESSION = 0.15 # (Acceleration/Decel aggression) Lower is more aggress
 ButtonType = car.CarState.ButtonEvent.Type
 EventName = car.CarEvent.EventName
 
-# checks that all key:item pairs in f1 are present in f2 (not the other way around)
-def fingerprint_match(f1, f2):
-  match = isinstance(f1, dict) and isinstance(f2, dict)
-  for k,v in f1.items():
-    if not match:
-      break
-    m = f2.get(k)
-    if not m or m != v:
-      match = False
-  return match
-
 class CarInterface(CarInterfaceBase):
 
   @staticmethod
