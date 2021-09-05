@@ -4,7 +4,7 @@ from common.numpy_fast import interp
 from selfdrive.config import Conversions as CV
 from selfdrive.car import apply_std_steer_torque_limits
 from selfdrive.car.gm import gmcan
-from selfdrive.car.gm.values import DBC, AccState, CanBus, CarControllerParams, CAR
+from selfdrive.car.gm.values import DBC, AccState, CanBus, CarControllerParams
 from opendbc.can.packer import CANPacker
 
 VisualAlert = car.CarControl.HUDControl.VisualAlert
@@ -106,19 +106,6 @@ class CarController():
         near_stop = enabled and (CS.out.vEgo < P.NEAR_STOP_BRAKE_PHASE) and car_stopping
         can_sends.append(gmcan.create_friction_brake_command(self.packer_ch, CanBus.CHASSIS, apply_brake, idx, near_stop, at_full_stop))
         CS.autoHoldActivated = False
-        
-        # Manual stop'n'go logic for 2018 Volt
-#         try:
-#           if CS.CP.doManualSNG:
-#             with open('/data/volt_fingerprint_carcontroller_matches', 'w') as f:
-#               f.write('yay!')
-#           else:
-#             with open('/data/volt_fingerprint_carcontroller_no_matches', 'w') as f:
-#               f.write('aww')
-#         except Exception as e:
-#           with open('/data/volt_fingerprint_carcontroller_error', 'w') as f:
-#             f.write('waa? %s' % e)
-            
         
         # Auto-resume from full stop by resetting ACC control
         acc_enabled = enabled
