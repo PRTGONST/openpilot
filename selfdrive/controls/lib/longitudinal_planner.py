@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import math
 import numpy as np
+from common.params import Params
 from common.numpy_fast import interp
 
 import cereal.messaging as messaging
@@ -55,8 +56,8 @@ class Planner():
     self.mpcs = {}
     self.mpcs['lead0'] = LeadMpc(0)
     self.mpcs['lead1'] = LeadMpc(1)
-    self.mpcs['cruise'] = LongitudinalMpc()
-    self.mpcs['custom'] = LimitsLongitudinalMpc()
+    self.mpcs['cruise'] = LongitudinalMpc(1)
+    self.mpcs['custom'] = LongitudinalMpc(2)
 
     self.fcw = False
     self.fcw_checker = FCWChecker()

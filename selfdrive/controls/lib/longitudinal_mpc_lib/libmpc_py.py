@@ -1,34 +1,48 @@
 import os
+import platform
+import subprocess
 
 from cffi import FFI
 from common.ffi_wrapper import suffix
 
 mpc_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-libmpc_fn = os.path.join(mpc_dir, "libmpc"+suffix())
 
-ffi = FFI()
-ffi.cdef("""
-const int MPC_N = 32;
+if platform.machine() == "x86_64":
+  try:
+    FFI().dlopen(os.path.join(mpc_dir, "libmpc1.so"))
+  except OSError:
+    # libmpc1.so is likely built for aarch64. cleaning...
+    subprocess.check_call(["make", "clean"], cwd=mpc_dir)
 
-typedef struct {
-double x_ego, v_ego, a_ego;
-} state_t;
+subprocess.check_call(["make", "-j4"], cwd=mpc_dir)
 
+def _get_libmpc(mpc_id):
+    libmpc_fn = os.path.join(mpc_dir, "libmpc%d%s" % (mpc_id, suffix()))
 
-typedef struct {
-double x_ego[MPC_N+1];
-double v_ego[MPC_N+1];
-double a_ego[MPC_N+1];
-double t[MPC_N+1];
-double j_ego[MPC_N];
-double cost;
-} log_t;
+    ffi = FFI()
+    ffi.cdef("""
+    typedef struct {
+    double x_ego, v_ego, a_ego, x_l, v_l, a_l;
+    } state_t;
+    typedef struct {
+    double x_ego[21];
+    double v_ego[21];
+    double a_ego[21];
+    double j_ego[21];
+    double x_l[21];
+    double v_l[21];
+    double t[21];
+    double cost;
+    } log_t;
+    void init(double ttcCost, double distanceCost, double accelerationCost, double jerkCost);
+    void init_with_simulation(double v_ego, double x_l, double v_l, double a_l, double l);
+    int run_mpc(state_t * x0, log_t * solution,
+                double l, double a_l_0, double TR);
+    """)
 
+    return (ffi, ffi.dlopen(libmpc_fn))
 
-void init(double xCost, double vCost, double aCost, double jerkCost, double constraintCost);
-int run_mpc(state_t * x0, log_t * solution,
-            double target_x[MPC_N+1], double target_v[MPC_N+1], double target_a[MPC_N+1],
-            double min_a, double max_a);
-""")
+mpcs = [_get_libmpc(1), _get_libmpc(2)]
 
-libmpc = ffi.dlopen(libmpc_fn)
+def get_libmpc(mpc_id):
+    return mpcs[mpc_id - 1]

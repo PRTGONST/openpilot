@@ -130,6 +130,10 @@ class CarState(CarStateBase):
       ("TractionControlOn", "ESPStatus", 0),
       ("EPBClosed", "EPBStatus", 0),
       ("CruiseMainOn", "ECMEngineStatus", 0),
+      ("LKAButton", "ASCMSteeringButton", 0),
+      ("DistanceButton", "ASCMSteeringButton", 0),
+      ("LKATorqueDelivered", "PSCMStatus", 0),
+      ("EngineRPM", "ECMEngineStatus", 0),
     ]
 
     checks = [

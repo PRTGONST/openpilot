@@ -1,5 +1,5 @@
 import os
-import numpy as np
+from common.numpy_fast import interp
 import math
 
 import cereal.messaging as messaging
